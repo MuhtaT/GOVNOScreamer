@@ -97,8 +97,8 @@ jobs:
         run: mvn clean package -DskipTests
         
       - name: Build Linux app-image
-        run: |
-          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --linux-shortcut --linux-menu-group "Office" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+        run: |  # УБРАНЫ НЕСОВМЕСТИМЫЕ ОПЦИИ
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
           
       - name: Create Linux Archive
         run: |
@@ -115,7 +115,7 @@ jobs:
           mkdir -p dist/GOVNO-Screamer.AppDir
           cp -r dist/GOVNO-Screamer/* dist/GOVNO-Screamer.AppDir/
           
-          # Create desktop file
+          # Создаем ярлык вручную
           cat > dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop << EOF
           [Desktop Entry]
           Name=GOVNO Screamer
@@ -124,14 +124,15 @@ jobs:
           Icon=GOVNO-Screamer
           Type=Application
           Categories=Office;Finance;
+          Terminal=false
           EOF
           
           chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop
           chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer
           
-          # Create AppImage
+          # Создаем AppImage
           ARCH=x86_64 ./appimagetool dist/GOVNO-Screamer.AppDir dist/GOVNO-Screamer-Linux-x86_64.AppImage
-          
+      
       - name: Upload Linux Archive
         uses: actions/upload-artifact@v4
         with:
