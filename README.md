@@ -67,7 +67,7 @@
 #### 🔧 **Сборка из исходников**
 ```bash
 # Клонируйте репозиторий
-git clone https://github.com/yourusername/GOVNOScreamer.git
+git clone https://github.com/MuhtaT/GOVNOScreamer.git
 cd GOVNOScreamer
 
 # Соберите JAR файл
