@@ -1,0 +1,257 @@
+name: Build and Release for All Platforms
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.1)'
+        required: true
+        default: 'v1.0.1'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+          
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+        
+      - name: Build Windows Portable (.exe)
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Build Windows MSI Installer
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer-Installer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type msi --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --win-menu --win-shortcut --win-dir-chooser --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Create Windows ZIP archive
+        run: |
+          cd dist
+          powershell Compress-Archive -Path "GOVNO-Screamer" -DestinationPath "GOVNO-Screamer-Windows-Portable.zip"
+          
+      - name: Copy Universal JAR
+        run: |
+          copy target\govnoscreamer-widget-1.0.0.jar dist\GOVNO-Screamer-Universal.jar
+          
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: dist/GOVNO-Screamer-Windows-Portable.zip
+          
+      - name: Upload Windows MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: dist/*.msi
+          
+      - name: Upload Universal JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-jar
+          path: dist/GOVNO-Screamer-Universal.jar
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse desktop-file-utils
+          
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+          
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+        
+      - name: Build Linux app-image
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --linux-shortcut --linux-menu-group "Office" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Create Linux Archive
+        run: |
+          cd dist
+          tar -czf GOVNO-Screamer-Linux-x64.tar.gz GOVNO-Screamer/
+          
+      - name: Download and setup AppImageTool
+        run: |
+          wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          
+      - name: Create AppImage
+        run: |
+          mkdir -p dist/GOVNO-Screamer.AppDir
+          cp -r dist/GOVNO-Screamer/* dist/GOVNO-Screamer.AppDir/
+          
+          # Create desktop file
+          cat > dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop << EOF
+          [Desktop Entry]
+          Name=GOVNO Screamer
+          Comment=GOVNO/TON Crypto Screamer Widget
+          Exec=GOVNO-Screamer
+          Icon=GOVNO-Screamer
+          Type=Application
+          Categories=Office;Finance;
+          EOF
+          
+          chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop
+          chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer
+          
+          # Create AppImage
+          ARCH=x86_64 ./appimagetool dist/GOVNO-Screamer.AppDir dist/GOVNO-Screamer-Linux-x86_64.AppImage
+          
+      - name: Upload Linux Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-archive
+          path: dist/GOVNO-Screamer-Linux-x64.tar.gz
+          
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: dist/GOVNO-Screamer-Linux-x86_64.AppImage
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+          
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+        
+      - name: Build macOS app-image
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --mac-package-name "GOVNO Screamer" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Create macOS Archive
+        run: |
+          cd dist
+          tar -czf GOVNO-Screamer-macOS-x64.tar.gz GOVNO-Screamer.app/
+        
+      - name: Build macOS DMG
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer-Installer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type dmg --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --mac-package-name "GOVNO Screamer" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Upload macOS Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-archive
+          path: dist/GOVNO-Screamer-macOS-x64.tar.gz
+          
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/*.dmg
+
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          
+      - name: Create Release Notes
+        run: |
+          cat > release_notes.md << EOF
+          # GOVNO/TON Crypto Screamer Widget - Release ${{ github.ref_name }}
+          
+          ## Готовые к использованию файлы:
+          
+          ### 🖥️ Windows (рекомендуется)
+          - **GOVNO-Screamer-Installer-1.0.0.msi** - MSI установщик с автоматической установкой
+          - **GOVNO-Screamer-Windows-Portable.zip** - Портативная версия (не требует установки)
+          
+          ### 🐧 Linux
+          - **GOVNO-Screamer-Linux-x86_64.AppImage** - Универсальный AppImage (chmod +x и запускай)
+          - **GOVNO-Screamer-Linux-x64.tar.gz** - Архив с исполняемыми файлами
+          
+          ### 🍎 macOS
+          - **GOVNO-Screamer-Installer-1.0.0.dmg** - DMG установщик для macOS
+          - **GOVNO-Screamer-macOS-x64.tar.gz** - Архив с .app файлом
+          
+          ### ☕ Универсальная версия (любая ОС с Java)
+          - **GOVNO-Screamer-Universal.jar** - Требует Java 8+ (java -jar GOVNO-Screamer-Universal.jar)
+          
+          ## Как запустить:
+          1. **Windows**: Скачайте .msi или распакуйте .zip
+          2. **Linux**: Скачайте .AppImage, сделайте исполняемым (chmod +x) и запустите
+          3. **macOS**: Скачайте .dmg или распакуйте .tar.gz
+          4. **Любая ОС**: Установите Java и запустите .jar файл
+          
+          ## Возможности:
+          - 🕒 Реальное время и дата
+          - 📊 Анимированная полоса прогресса
+          - 🎨 Современный дизайн с градиентами
+          - 📌 Всегда поверх других окон
+          - 🖱️ Перетаскивание мышью
+          - 💾 Системный трей
+          - ⚙️ Интерактивные кнопки
+          EOF
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.msi
+            *.zip
+            *.tar.gz
+            *.AppImage
+            *.dmg
+            *.jar
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
