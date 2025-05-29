@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.5'
+        default: 'v1.0.6'
 
 jobs:
   build-windows:
@@ -169,10 +169,24 @@ jobs:
             fi
           fi
 
-          # TODO: Убедись, что иконка ${EXECUTABLE_NAME}.png или .svg присутствует в ${APPIMAGE_DIR}/
-          # Например, скопируй ее из JPACKAGE_APP_DIR/share/icons/... или добавь свою.
-          # Пример: cp "${JPACKAGE_APP_DIR}/share/icons/hicolor/256x256/apps/${EXECUTABLE_NAME}.png" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.png"
-          # Если иконки нет, appimagetool может использовать стандартную или не добавить ее вовсе.
+          # Копируем иконку в корень AppDir
+          # Убедись, что иконка существует по одному из этих путей в твоем репозитории
+          ICON_SOURCE_PATH_PRIMARY="src/main/resources/icons/${EXECUTABLE_NAME}.png" # e.g., GOVNO-Screamer.png
+          ICON_SOURCE_PATH_ALTERNATIVE="src/main/resources/icons/app-icon.png"    # Generic name
+          ICON_DEST_PATH="${APPIMAGE_DIR}/${EXECUTABLE_NAME}.png"             # e.g., APPIMAGE_DIR/GOVNO-Screamer.png
+
+          if [ -f "${ICON_SOURCE_PATH_PRIMARY}" ]; then
+            cp "${ICON_SOURCE_PATH_PRIMARY}" "${ICON_DEST_PATH}"
+            echo "Иконка скопирована из ${ICON_SOURCE_PATH_PRIMARY} в ${ICON_DEST_PATH}"
+          elif [ -f "${ICON_SOURCE_PATH_ALTERNATIVE}" ]; then
+            cp "${ICON_SOURCE_PATH_ALTERNATIVE}" "${ICON_DEST_PATH}"
+            echo "Иконка скопирована из ${ICON_SOURCE_PATH_ALTERNATIVE} в ${ICON_DEST_PATH}"
+          else
+            echo "ПРЕДУПРЕЖДЕНИЕ: Файл иконки не найден ни по пути '${ICON_SOURCE_PATH_PRIMARY}', ни по '${ICON_SOURCE_PATH_ALTERNATIVE}'."
+            echo "AppImage будет создан без иконки или с иконкой по умолчанию от appimagetool."
+            # Если иконка обязательна для сборки, раскомментируй следующую строку:
+            # exit 1
+          fi
 
           # Создаем AppImage
           ARCH=x86_64 ./appimagetool "${APPIMAGE_DIR}" "dist/${EXECUTABLE_NAME}-Linux-x86_64.AppImage"
