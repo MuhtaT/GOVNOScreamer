@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.8'
+        default: 'v1.0.7'
 
 jobs:
   build-windows:
@@ -83,7 +83,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y fuse desktop-file-utils
+          sudo apt-get install -y fuse desktop-file-utils imagemagick
           
       - name: Cache Maven dependencies
         uses: actions/cache@v4
@@ -116,29 +116,71 @@ jobs:
           
       - name: Create AppImage
         run: |
+          # Отладка: проверяем что создал jpackage
+          echo "=== Отладка: Содержимое dist/ после jpackage ==="
+          ls -la dist/
+          echo ""
+          
           # Директория, созданная jpackage (--type app-image)
           JPACKAGE_APP_DIR="dist/GOVNO-Screamer"
+          
+          # Проверяем, что jpackage создал директорию
+          if [ ! -d "${JPACKAGE_APP_DIR}" ]; then
+            echo "Ошибка: jpackage не создал директорию ${JPACKAGE_APP_DIR}"
+            echo "Содержимое dist/:"
+            ls -la dist/
+            exit 1
+          fi
+          
+          echo "=== Структура созданная jpackage ==="
+          ls -laR "${JPACKAGE_APP_DIR}"
+          echo ""
 
           # Наша AppDir, куда мы будем собирать все для appimagetool
           APPIMAGE_DIR="dist/GOVNO-Screamer.AppDir"
           mkdir -p "${APPIMAGE_DIR}"
 
           # Копируем все из jpackage-вывода в корень AppDir
-          # Это скопирует bin/, lib/ и т.д. внутрь APPIMAGE_DIR
+          echo "Копируем файлы из ${JPACKAGE_APP_DIR} в ${APPIMAGE_DIR}..."
           cp -a "${JPACKAGE_APP_DIR}/." "${APPIMAGE_DIR}/" 
           
           EXECUTABLE_NAME="GOVNO-Screamer" 
-          PRIMARY_EXEC_PATH="bin/${EXECUTABLE_NAME}"   # Предполагаемый путь jpackage
-          FALLBACK_EXEC_PATH="${EXECUTABLE_NAME}" # Альтернативный путь (если jpackage кладет в корень)
+          
+          # Ищем исполняемый файл в различных возможных местах
+          POSSIBLE_PATHS=(
+            "bin/${EXECUTABLE_NAME}"
+            "${EXECUTABLE_NAME}"
+            "bin/GOVNO-Screamer"
+            "GOVNO-Screamer"
+          )
           
           TARGET_EXECUTABLE_IN_APPDIR=""
+          
+          echo "=== Поиск исполняемого файла ==="
+          for path in "${POSSIBLE_PATHS[@]}"; do
+            full_path="${APPIMAGE_DIR}/${path}"
+            echo "Проверяем: ${full_path}"
+            if [ -f "${full_path}" ]; then
+              chmod +x "${full_path}"
+              TARGET_EXECUTABLE_IN_APPDIR="${path}"
+              echo "✓ Найден исполняемый файл: ${TARGET_EXECUTABLE_IN_APPDIR}"
+              break
+            fi
+          done
+          
+          if [ -z "${TARGET_EXECUTABLE_IN_APPDIR}" ]; then
+            echo "Ошибка: Исполняемый файл не найден!"
+            echo "Структура AppDir:"
+            find "${APPIMAGE_DIR}" -type f -executable
+            exit 1
+          fi
 
-          # Создаем .desktop файл в корне AppDir (сначала с путем по умолчанию)
+          # Создаем .desktop файл в корне AppDir
           cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << EOF
           [Desktop Entry]
           Name=GOVNO Screamer
           Comment=GOVNO/TON Crypto Screamer Widget
-          Exec=${PRIMARY_EXEC_PATH} 
+          Exec=${TARGET_EXECUTABLE_IN_APPDIR}
           Icon=${EXECUTABLE_NAME}
           Type=Application
           Categories=Office;Finance;
@@ -146,55 +188,59 @@ jobs:
           EOF
           chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
 
-          # Определяем фактический путь к исполняемому файлу и устанавливаем права
-          if [ -f "${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}" ]; then
-            chmod +x "${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}"
-            TARGET_EXECUTABLE_IN_APPDIR="${PRIMARY_EXEC_PATH}"
-            echo "Исполняемый файл найден по основному пути: ${TARGET_EXECUTABLE_IN_APPDIR}"
-            # .desktop файл уже содержит PRIMARY_EXEC_PATH, ничего не меняем
-          elif [ -f "${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}" ]; then
-            chmod +x "${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}"
-            TARGET_EXECUTABLE_IN_APPDIR="${FALLBACK_EXEC_PATH}"
-            echo "Исполняемый файл найден по альтернативному пути: ${TARGET_EXECUTABLE_IN_APPDIR}"
-            # Обновляем Exec в .desktop файле
-            sed -i "s|^Exec=.*|Exec=${TARGET_EXECUTABLE_IN_APPDIR}|" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
-            echo ".desktop файл обновлен для использования ${TARGET_EXECUTABLE_IN_APPDIR}"
-          else
-            echo "Ошибка: Исполняемый файл не найден ни по пути '${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}', ни по '${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}'"
-            ls -R "${APPIMAGE_DIR}" # Выводим структуру для отладки
-            exit 1
-          fi
-
           # Создаем кастомный AppRun скрипт
           echo "Создание AppRun скрипта указывающего на ${TARGET_EXECUTABLE_IN_APPDIR}..."
           cat > "${APPIMAGE_DIR}/AppRun" << 'EOF'
 #!/bin/sh
 HERE=$(dirname $(readlink -f "$0"))
-exec "${HERE}/${TARGET_EXECUTABLE_IN_APPDIR}" "$@"
+# Найдем исполняемый файл
+if [ -x "${HERE}/bin/GOVNO-Screamer" ]; then
+    exec "${HERE}/bin/GOVNO-Screamer" "$@"
+elif [ -x "${HERE}/GOVNO-Screamer" ]; then
+    exec "${HERE}/GOVNO-Screamer" "$@"
+else
+    echo "Ошибка: Исполняемый файл не найден"
+    exit 1
+fi
 EOF
           chmod +x "${APPIMAGE_DIR}/AppRun"
           echo "AppRun скрипт создан и сделан исполняемым."
 
           # Копируем иконку в корень AppDir
-          # Убедись, что иконка существует по одному из этих путей в твоем репозитории
-          ICON_SOURCE_PATH_PRIMARY="src/main/resources/icons/${EXECUTABLE_NAME}.png" # e.g., GOVNO-Screamer.png
-          ICON_SOURCE_PATH_ALTERNATIVE="src/main/resources/icons/app-icon.png"    # Generic name
-          ICON_DEST_PATH="${APPIMAGE_DIR}/${EXECUTABLE_NAME}.png"             # e.g., APPIMAGE_DIR/GOVNO-Screamer.png
-
-          if [ -f "${ICON_SOURCE_PATH_PRIMARY}" ]; then
-            cp "${ICON_SOURCE_PATH_PRIMARY}" "${ICON_DEST_PATH}"
-            echo "Иконка скопирована из ${ICON_SOURCE_PATH_PRIMARY} в ${ICON_DEST_PATH}"
-          elif [ -f "${ICON_SOURCE_PATH_ALTERNATIVE}" ]; then
-            cp "${ICON_SOURCE_PATH_ALTERNATIVE}" "${ICON_DEST_PATH}"
-            echo "Иконка скопирована из ${ICON_SOURCE_PATH_ALTERNATIVE} в ${ICON_DEST_PATH}"
-          else
-            echo "ПРЕДУПРЕЖДЕНИЕ: Файл иконки не найден ни по пути '${ICON_SOURCE_PATH_PRIMARY}', ни по '${ICON_SOURCE_PATH_ALTERNATIVE}'."
-            echo "AppImage будет создан без иконки или с иконкой по умолчанию от appimagetool."
-            # Если иконка обязательна для сборки, раскомментируй следующую строку:
-            # exit 1
+          ICON_SOURCE_PATHS=(
+            "src/main/resources/icons/${EXECUTABLE_NAME}.png"
+            "src/main/resources/icons/app-icon.png"
+            "src/main/resources/icon.png"
+            "icon.png"
+          )
+          
+          ICON_DEST_PATH="${APPIMAGE_DIR}/${EXECUTABLE_NAME}.png"
+          ICON_FOUND=false
+          
+          for icon_path in "${ICON_SOURCE_PATHS[@]}"; do
+            if [ -f "${icon_path}" ]; then
+              cp "${icon_path}" "${ICON_DEST_PATH}"
+              echo "Иконка скопирована из ${icon_path}"
+              ICON_FOUND=true
+              break
+            fi
+          done
+          
+          if [ "$ICON_FOUND" = false ]; then
+            echo "ПРЕДУПРЕЖДЕНИЕ: Иконка не найдена, создаем заглушку"
+            # Создаем простую иконку-заглушку
+            echo "Создание простой PNG иконки..."
+            convert -size 256x256 xc:transparent -fill '#4CAF50' -draw 'circle 128,128 128,64' "${ICON_DEST_PATH}" 2>/dev/null || {
+              echo "ImageMagick недоступен, пропускаем создание иконки"
+            }
           fi
 
+          echo "=== Финальная структура AppDir ==="
+          ls -laR "${APPIMAGE_DIR}"
+          echo ""
+
           # Создаем AppImage
+          echo "Создание AppImage..."
           ARCH=x86_64 ./appimagetool "${APPIMAGE_DIR}" "dist/${EXECUTABLE_NAME}-Linux-x86_64.AppImage"
           
       - name: Upload Linux Archive
@@ -271,6 +317,36 @@ EOF
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+          
+      - name: Rename files with version
+        run: |
+          # Получаем версию из тега
+          VERSION=${{ github.ref_name }}
+          echo "Переименовываем файлы для версии: $VERSION"
+          
+          # Переименовываем файлы с версиями
+          [ -f "GOVNO-Screamer-Windows-Portable.zip" ] && mv "GOVNO-Screamer-Windows-Portable.zip" "GOVNO-Screamer-Windows-Portable-${VERSION}.zip"
+          [ -f "GOVNO-Screamer-Universal.jar" ] && mv "GOVNO-Screamer-Universal.jar" "GOVNO-Screamer-Universal-${VERSION}.jar"
+          [ -f "GOVNO-Screamer-Linux-x64.tar.gz" ] && mv "GOVNO-Screamer-Linux-x64.tar.gz" "GOVNO-Screamer-Linux-x64-${VERSION}.tar.gz"
+          [ -f "GOVNO-Screamer-Linux-x86_64.AppImage" ] && mv "GOVNO-Screamer-Linux-x86_64.AppImage" "GOVNO-Screamer-Linux-x86_64-${VERSION}.AppImage"
+          [ -f "GOVNO-Screamer-macOS-x64.tar.gz" ] && mv "GOVNO-Screamer-macOS-x64.tar.gz" "GOVNO-Screamer-macOS-x64-${VERSION}.tar.gz"
+          
+          # Переименовываем MSI и DEB файлы
+          for file in *.msi; do
+            [ -f "$file" ] && mv "$file" "${file%.msi}-${VERSION}.msi"
+          done
+          
+          for file in *.deb; do
+            [ -f "$file" ] && mv "$file" "${file%.deb}-${VERSION}.deb"
+          done
+          
+          for file in *.dmg; do
+            [ -f "$file" ] && mv "$file" "${file%.dmg}-${VERSION}.dmg"
+          done
+          
+          # Показываем финальный список файлов
+          echo "Файлы для релиза:"
+          ls -la *.zip *.jar *.tar.gz *.AppImage *.msi *.deb *.dmg 2>/dev/null || echo "Некоторые файлы могут отсутствовать"
           
       - name: Create Release Notes
         run: |
