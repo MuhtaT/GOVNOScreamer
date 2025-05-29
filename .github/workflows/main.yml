@@ -176,7 +176,7 @@ jobs:
           fi
 
           # Создаем .desktop файл в корне AppDir
-          cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << 'EOF'
+          cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" <<EOF
 [Desktop Entry]
 Name=GOVNO Screamer
 Comment=GOVNO/TON Crypto Screamer Widget
@@ -190,7 +190,7 @@ EOF
 
           # Создаем кастомный AppRun скрипт
           echo "Создание AppRun скрипта указывающего на ${TARGET_EXECUTABLE_IN_APPDIR}..."
-          cat > "${APPIMAGE_DIR}/AppRun" << 'EOF'
+          cat > "${APPIMAGE_DIR}/AppRun" <<EOF
 #!/bin/sh
 HERE=$(dirname $(readlink -f "$0"))
 # Найдем исполняемый файл
@@ -350,7 +350,7 @@ EOF
           
       - name: Create Release Notes
         run: |
-          cat > release_notes.md << 'EOF'
+          cat > release_notes.md <<EOF
 # GOVNO/TON Crypto Screamer Widget - Release ${{ github.ref_name }}
 
 ## Готовые к использованию файлы:
