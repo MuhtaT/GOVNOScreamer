@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.7'
+        default: 'v1.0.8'
 
 jobs:
   build-windows:
@@ -167,10 +167,10 @@ jobs:
 
           # Создаем кастомный AppRun скрипт
           echo "Создание AppRun скрипта указывающего на ${TARGET_EXECUTABLE_IN_APPDIR}..."
-          cat > "${APPIMAGE_DIR}/AppRun" << EOF
+          cat > "${APPIMAGE_DIR}/AppRun" << 'EOF'
 #!/bin/sh
-HERE=\$(dirname \$(readlink -f "$0"))
-exec "\${HERE}/${TARGET_EXECUTABLE_IN_APPDIR}" "$@"
+HERE=$(dirname $(readlink -f "$0"))
+exec "${HERE}/${TARGET_EXECUTABLE_IN_APPDIR}" "$@"
 EOF
           chmod +x "${APPIMAGE_DIR}/AppRun"
           echo "AppRun скрипт создан и сделан исполняемым."
