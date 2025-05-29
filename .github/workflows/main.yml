@@ -97,8 +97,12 @@ jobs:
         run: mvn clean package -DskipTests
         
       - name: Build Linux app-image
-        run: |  # УБРАНЫ НЕСОВМЕСТИМЫЕ ОПЦИИ
-          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --linux-menu-group "Office" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          
+      - name: Build Linux deb
+        run: |
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type deb --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --linux-shortcut --linux-menu-group "Office" --linux-package-name govno-screamer --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
           
       - name: Create Linux Archive
         run: |
@@ -115,7 +119,7 @@ jobs:
           mkdir -p dist/GOVNO-Screamer.AppDir
           cp -r dist/GOVNO-Screamer/* dist/GOVNO-Screamer.AppDir/
           
-          # Создаем ярлык вручную
+          # Create desktop file
           cat > dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop << EOF
           [Desktop Entry]
           Name=GOVNO Screamer
@@ -124,15 +128,14 @@ jobs:
           Icon=GOVNO-Screamer
           Type=Application
           Categories=Office;Finance;
-          Terminal=false
           EOF
           
           chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop
           chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer
           
-          # Создаем AppImage
+          # Create AppImage
           ARCH=x86_64 ./appimagetool dist/GOVNO-Screamer.AppDir dist/GOVNO-Screamer-Linux-x86_64.AppImage
-      
+          
       - name: Upload Linux Archive
         uses: actions/upload-artifact@v4
         with:
@@ -144,6 +147,12 @@ jobs:
         with:
           name: linux-appimage
           path: dist/GOVNO-Screamer-Linux-x86_64.AppImage
+          
+      - name: Upload Linux Deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: dist/*.deb
 
   build-macos:
     runs-on: macos-latest
@@ -210,19 +219,20 @@ jobs:
           ## Готовые к использованию файлы:
           
           ### 🖥️ Windows (рекомендуется)
-          - **GOVNO-Screamer-Installer-1.0.0.msi** - MSI установщик с автоматической установкой
-          - **GOVNO-Screamer-Windows-Portable.zip** - Портативная версия (не требует установки)
+          - **GOVNO-Screamer-Installer-${{ github.ref_name }}.msi** - MSI установщик с автоматической установкой
+          - **GOVNO-Screamer-Windows-Portable-${{ github.ref_name }}.zip** - Портативная версия (не требует установки)
           
           ### 🐧 Linux
-          - **GOVNO-Screamer-Linux-x86_64.AppImage** - Универсальный AppImage (chmod +x и запускай)
-          - **GOVNO-Screamer-Linux-x64.tar.gz** - Архив с исполняемыми файлами
+          - **govno-screamer-${{ github.ref_name }}_amd64.deb** - DEB пакет для Debian/Ubuntu
+          - **GOVNO-Screamer-Linux-x86_64-${{ github.ref_name }}.AppImage** - Универсальный AppImage (chmod +x и запускай)
+          - **GOVNO-Screamer-Linux-x64-${{ github.ref_name }}.tar.gz** - Архив с исполняемыми файлами
           
           ### 🍎 macOS
-          - **GOVNO-Screamer-Installer-1.0.0.dmg** - DMG установщик для macOS
-          - **GOVNO-Screamer-macOS-x64.tar.gz** - Архив с .app файлом
+          - **GOVNO-Screamer-Installer-${{ github.ref_name }}.dmg** - DMG установщик для macOS
+          - **GOVNO-Screamer-macOS-x64-${{ github.ref_name }}.tar.gz** - Архив с .app файлом
           
           ### ☕ Универсальная версия (любая ОС с Java)
-          - **GOVNO-Screamer-Universal.jar** - Требует Java 8+ (java -jar GOVNO-Screamer-Universal.jar)
+          - **GOVNO-Screamer-Universal-${{ github.ref_name }}.jar** - Требует Java 8+ (java -jar GOVNO-Screamer-Universal.jar)
           
           ## Как запустить:
           1. **Windows**: Скачайте .msi или распакуйте .zip
@@ -248,6 +258,7 @@ jobs:
             *.zip
             *.tar.gz
             *.AppImage
+            *.deb
             *.dmg
             *.jar
           body_path: release_notes.md
@@ -255,4 +266,4 @@ jobs:
           prerelease: false
           make_latest: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
