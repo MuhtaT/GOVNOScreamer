@@ -98,7 +98,7 @@ jobs:
         
       - name: Build Linux app-image
         run: |
-          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --linux-menu-group "Office" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
+          jpackage --input target --dest dist --name "GOVNO-Screamer" --main-jar govnoscreamer-widget-1.0.0.jar --main-class com.dayab.widget.Launcher --type app-image --app-version 1.0.0 --vendor "rawscript" --description "GOVNO/TON Crypto Screamer Widget" --copyright "© 2025 rawscript" --java-options "-Dfile.encoding=UTF-8" --java-options "-Djava.awt.headless=false"
           
       - name: Build Linux deb
         run: |
@@ -307,4 +307,4 @@ jobs:
           prerelease: false
           make_latest: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
