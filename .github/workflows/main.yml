@@ -176,16 +176,16 @@ jobs:
           fi
 
           # Создаем .desktop файл в корне AppDir
-          cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << EOF
-          [Desktop Entry]
-          Name=GOVNO Screamer
-          Comment=GOVNO/TON Crypto Screamer Widget
-          Exec=${TARGET_EXECUTABLE_IN_APPDIR}
-          Icon=${EXECUTABLE_NAME}
-          Type=Application
-          Categories=Office;Finance;
-          Terminal=false
-          EOF
+          cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << 'EOF'
+[Desktop Entry]
+Name=GOVNO Screamer
+Comment=GOVNO/TON Crypto Screamer Widget
+Exec=${TARGET_EXECUTABLE_IN_APPDIR}
+Icon=${EXECUTABLE_NAME}
+Type=Application
+Categories=Office;Finance;
+Terminal=false
+EOF
           chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
 
           # Создаем кастомный AppRun скрипт
@@ -350,42 +350,42 @@ EOF
           
       - name: Create Release Notes
         run: |
-          cat > release_notes.md << EOF
-          # GOVNO/TON Crypto Screamer Widget - Release ${{ github.ref_name }}
-          
-          ## Готовые к использованию файлы:
-          
-          ### 🖥️ Windows (рекомендуется)
-          - **GOVNO-Screamer-Installer-${{ github.ref_name }}.msi** - MSI установщик с автоматической установкой
-          - **GOVNO-Screamer-Windows-Portable-${{ github.ref_name }}.zip** - Портативная версия (не требует установки)
-          
-          ### 🐧 Linux
-          - **govno-screamer-${{ github.ref_name }}_amd64.deb** - DEB пакет для Debian/Ubuntu
-          - **GOVNO-Screamer-Linux-x86_64-${{ github.ref_name }}.AppImage** - Универсальный AppImage (chmod +x и запускай)
-          - **GOVNO-Screamer-Linux-x64-${{ github.ref_name }}.tar.gz** - Архив с исполняемыми файлами
-          
-          ### 🍎 macOS
-          - **GOVNO-Screamer-Installer-${{ github.ref_name }}.dmg** - DMG установщик для macOS
-          - **GOVNO-Screamer-macOS-x64-${{ github.ref_name }}.tar.gz** - Архив с .app файлом
-          
-          ### ☕ Универсальная версия (любая ОС с Java)
-          - **GOVNO-Screamer-Universal-${{ github.ref_name }}.jar** - Требует Java 8+ (java -jar GOVNO-Screamer-Universal.jar)
-          
-          ## Как запустить:
-          1. **Windows**: Скачайте .msi или распакуйте .zip
-          2. **Linux**: Скачайте .AppImage, сделайте исполняемым (chmod +x) и запустите
-          3. **macOS**: Скачайте .dmg или распакуйте .tar.gz
-          4. **Любая ОС**: Установите Java и запустите .jar файл
-          
-          ## Возможности:
-          - 🕒 Реальное время и дата
-          - 📊 Анимированная полоса прогресса
-          - 🎨 Современный дизайн с градиентами
-          - 📌 Всегда поверх других окон
-          - 🖱️ Перетаскивание мышью
-          - 💾 Системный трей
-          - ⚙️ Интерактивные кнопки
-          EOF
+          cat > release_notes.md << 'EOF'
+# GOVNO/TON Crypto Screamer Widget - Release ${{ github.ref_name }}
+
+## Готовые к использованию файлы:
+
+### 🖥️ Windows (рекомендуется)
+- **GOVNO-Screamer-Installer-${{ github.ref_name }}.msi** - MSI установщик с автоматической установкой
+- **GOVNO-Screamer-Windows-Portable-${{ github.ref_name }}.zip** - Портативная версия (не требует установки)
+
+### 🐧 Linux
+- **govno-screamer-${{ github.ref_name }}_amd64.deb** - DEB пакет для Debian/Ubuntu
+- **GOVNO-Screamer-Linux-x86_64-${{ github.ref_name }}.AppImage** - Универсальный AppImage (chmod +x и запускай)
+- **GOVNO-Screamer-Linux-x64-${{ github.ref_name }}.tar.gz** - Архив с исполняемыми файлами
+
+### 🍎 macOS
+- **GOVNO-Screamer-Installer-${{ github.ref_name }}.dmg** - DMG установщик для macOS
+- **GOVNO-Screamer-macOS-x64-${{ github.ref_name }}.tar.gz** - Архив с .app файлом
+
+### ☕ Универсальная версия (любая ОС с Java)
+- **GOVNO-Screamer-Universal-${{ github.ref_name }}.jar** - Требует Java 8+ (java -jar GOVNO-Screamer-Universal.jar)
+
+## Как запустить:
+1. **Windows**: Скачайте .msi или распакуйте .zip
+2. **Linux**: Скачайте .AppImage, сделайте исполняемым (chmod +x) и запустите
+3. **macOS**: Скачайте .dmg или распакуйте .tar.gz
+4. **Любая ОС**: Установите Java и запустите .jar файл
+
+## Возможности:
+- 🕒 Реальное время и дата
+- 📊 Анимированная полоса прогресса
+- 🎨 Современный дизайн с градиентами
+- 📌 Всегда поверх других окон
+- 🖱️ Перетаскивание мышью
+- 💾 Системный трей
+- ⚙️ Интерактивные кнопки
+EOF
           
       - name: Create Release
         uses: softprops/action-gh-release@v2
