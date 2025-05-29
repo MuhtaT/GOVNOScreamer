@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.4'
+        default: 'v1.0.5'
 
 jobs:
   build-windows:
@@ -138,8 +138,8 @@ jobs:
           [Desktop Entry]
           Name=GOVNO Screamer
           Comment=GOVNO/TON Crypto Screamer Widget
-          Exec=${EXECUTABLE_PATH_IN_APPDIR} # Путь к исполняемому файлу внутри AppDir
-          Icon=${EXECUTABLE_NAME} # Имя иконки без расширения (appimagetool должен найти ее)
+          Exec=${EXECUTABLE_PATH_IN_APPDIR}
+          Icon=${EXECUTABLE_NAME}
           Type=Application
           Categories=Office;Finance;
           Terminal=false
