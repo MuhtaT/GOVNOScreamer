@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.6'
+        default: 'v1.0.7'
 
 jobs:
   build-windows:
@@ -127,47 +127,53 @@ jobs:
           # Это скопирует bin/, lib/ и т.д. внутрь APPIMAGE_DIR
           cp -a "${JPACKAGE_APP_DIR}/." "${APPIMAGE_DIR}/" 
           
-          # Имя, указанное в jpackage --name
           EXECUTABLE_NAME="GOVNO-Screamer" 
-          # Предполагаемый относительный путь к исполняемому файлу внутри AppDir после копирования
-          EXECUTABLE_PATH_IN_APPDIR="bin/${EXECUTABLE_NAME}"
+          PRIMARY_EXEC_PATH="bin/${EXECUTABLE_NAME}"   # Предполагаемый путь jpackage
+          FALLBACK_EXEC_PATH="${EXECUTABLE_NAME}" # Альтернативный путь (если jpackage кладет в корень)
+          
+          TARGET_EXECUTABLE_IN_APPDIR=""
 
-          # Создаем .desktop файл в корне AppDir
-          # Имя .desktop файла должно совпадать с Icon и именем приложения для лучшей интеграции
+          # Создаем .desktop файл в корне AppDir (сначала с путем по умолчанию)
           cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << EOF
           [Desktop Entry]
           Name=GOVNO Screamer
           Comment=GOVNO/TON Crypto Screamer Widget
-          Exec=${EXECUTABLE_PATH_IN_APPDIR}
+          Exec=${PRIMARY_EXEC_PATH} 
           Icon=${EXECUTABLE_NAME}
           Type=Application
           Categories=Office;Finance;
           Terminal=false
           EOF
-          
-          # Устанавливаем права на .desktop файл
           chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
 
-          # Устанавливаем права на сам исполняемый файл внутри AppDir
-          if [ -f "${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}" ]; then
-            chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}"
+          # Определяем фактический путь к исполняемому файлу и устанавливаем права
+          if [ -f "${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}" ]; then
+            chmod +x "${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}"
+            TARGET_EXECUTABLE_IN_APPDIR="${PRIMARY_EXEC_PATH}"
+            echo "Исполняемый файл найден по основному пути: ${TARGET_EXECUTABLE_IN_APPDIR}"
+            # .desktop файл уже содержит PRIMARY_EXEC_PATH, ничего не меняем
+          elif [ -f "${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}" ]; then
+            chmod +x "${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}"
+            TARGET_EXECUTABLE_IN_APPDIR="${FALLBACK_EXEC_PATH}"
+            echo "Исполняемый файл найден по альтернативному пути: ${TARGET_EXECUTABLE_IN_APPDIR}"
+            # Обновляем Exec в .desktop файле
+            sed -i "s|^Exec=.*|Exec=${TARGET_EXECUTABLE_IN_APPDIR}|" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
+            echo ".desktop файл обновлен для использования ${TARGET_EXECUTABLE_IN_APPDIR}"
           else
-            echo "Ошибка: Исполняемый файл не найден по пути ${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}"
-            # Попробуем найти исполняемый файл, если он не в bin/
-            # jpackage для app-image может помещать исполняемый файл прямо в корень созданной директории
-            ALT_EXECUTABLE_PATH_IN_APPDIR="${EXECUTABLE_NAME}"
-            if [ -f "${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}" ]; then
-                echo "Найден альтернативный исполняемый файл: ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
-                # Обновляем Exec в .desktop файле
-                sed -i "s|Exec=.*|Exec=${ALT_EXECUTABLE_PATH_IN_APPDIR}|" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
-                chmod +x "${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
-                echo "Права установлены для ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR} и .desktop файл обновлен."
-            else
-                echo "Альтернативный исполняемый файл также не найден: ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
-                ls -R "${APPIMAGE_DIR}" # Выводим структуру для отладки
-                exit 1
-            fi
+            echo "Ошибка: Исполняемый файл не найден ни по пути '${APPIMAGE_DIR}/${PRIMARY_EXEC_PATH}', ни по '${APPIMAGE_DIR}/${FALLBACK_EXEC_PATH}'"
+            ls -R "${APPIMAGE_DIR}" # Выводим структуру для отладки
+            exit 1
           fi
+
+          # Создаем кастомный AppRun скрипт
+          echo "Создание AppRun скрипта указывающего на ${TARGET_EXECUTABLE_IN_APPDIR}..."
+          cat > "${APPIMAGE_DIR}/AppRun" << EOF
+#!/bin/sh
+HERE=\$(dirname \$(readlink -f "$0"))
+exec "\${HERE}/${TARGET_EXECUTABLE_IN_APPDIR}" "$@"
+EOF
+          chmod +x "${APPIMAGE_DIR}/AppRun"
+          echo "AppRun скрипт создан и сделан исполняемым."
 
           # Копируем иконку в корень AppDir
           # Убедись, что иконка существует по одному из этих путей в твоем репозитории
