@@ -41,6 +41,8 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
+import com.formdev.flatlaf.FlatDarculaLaf;
+
 import com.dayab.widget.model.CandleData;
 import com.dayab.widget.model.PriceData;
 import com.dayab.widget.service.GeckoTerminalApiService;
@@ -1572,6 +1574,13 @@ public class CryptoScreamerWidget extends JFrame {
     }
     
     public static void main(String[] args) {
+        // Устанавливаем FlatLaf Darcula тему до инициализации Swing компонентов
+        try {
+            FlatDarculaLaf.setup();
+        } catch (Exception ex) {
+            System.err.println("Failed to initialize LaF: " + ex.getMessage());
+        }
+        
         SwingUtilities.invokeLater(() -> {
             new CryptoScreamerWidget().setVisible(true);
         });
