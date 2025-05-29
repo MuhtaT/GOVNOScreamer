@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag (e.g., v1.0.1)'
         required: true
-        default: 'v1.0.2'
+        default: 'v1.0.3'
 
 jobs:
   build-windows:
@@ -116,25 +116,66 @@ jobs:
           
       - name: Create AppImage
         run: |
-          mkdir -p dist/GOVNO-Screamer.AppDir
-          cp -r dist/GOVNO-Screamer/* dist/GOVNO-Screamer.AppDir/
+          # Директория, созданная jpackage (--type app-image)
+          JPACKAGE_APP_DIR="dist/GOVNO-Screamer"
+
+          # Наша AppDir, куда мы будем собирать все для appimagetool
+          APPIMAGE_DIR="dist/GOVNO-Screamer.AppDir"
+          mkdir -p "${APPIMAGE_DIR}"
+
+          # Копируем все из jpackage-вывода в корень AppDir
+          # Это скопирует bin/, lib/ и т.д. внутрь APPIMAGE_DIR
+          cp -a "${JPACKAGE_APP_DIR}/." "${APPIMAGE_DIR}/" 
           
-          # Create desktop file
-          cat > dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop << EOF
+          # Имя, указанное в jpackage --name
+          EXECUTABLE_NAME="GOVNO-Screamer" 
+          # Предполагаемый относительный путь к исполняемому файлу внутри AppDir после копирования
+          EXECUTABLE_PATH_IN_APPDIR="bin/${EXECUTABLE_NAME}"
+
+          # Создаем .desktop файл в корне AppDir
+          # Имя .desktop файла должно совпадать с Icon и именем приложения для лучшей интеграции
+          cat > "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop" << EOF
           [Desktop Entry]
           Name=GOVNO Screamer
           Comment=GOVNO/TON Crypto Screamer Widget
-          Exec=GOVNO-Screamer
-          Icon=GOVNO-Screamer
+          Exec=${EXECUTABLE_PATH_IN_APPDIR} # Путь к исполняемому файлу внутри AppDir
+          Icon=${EXECUTABLE_NAME} # Имя иконки без расширения (appimagetool должен найти ее)
           Type=Application
           Categories=Office;Finance;
+          Terminal=false
           EOF
           
-          chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer.desktop
-          chmod +x dist/GOVNO-Screamer.AppDir/GOVNO-Screamer
-          
-          # Create AppImage
-          ARCH=x86_64 ./appimagetool dist/GOVNO-Screamer.AppDir dist/GOVNO-Screamer-Linux-x86_64.AppImage
+          # Устанавливаем права на .desktop файл
+          chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
+
+          # Устанавливаем права на сам исполняемый файл внутри AppDir
+          if [ -f "${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}" ]; then
+            chmod +x "${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}"
+          else
+            echo "Ошибка: Исполняемый файл не найден по пути ${APPIMAGE_DIR}/${EXECUTABLE_PATH_IN_APPDIR}"
+            # Попробуем найти исполняемый файл, если он не в bin/
+            # jpackage для app-image может помещать исполняемый файл прямо в корень созданной директории
+            ALT_EXECUTABLE_PATH_IN_APPDIR="${EXECUTABLE_NAME}"
+            if [ -f "${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}" ]; then
+                echo "Найден альтернативный исполняемый файл: ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
+                # Обновляем Exec в .desktop файле
+                sed -i "s|Exec=.*|Exec=${ALT_EXECUTABLE_PATH_IN_APPDIR}|" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.desktop"
+                chmod +x "${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
+                echo "Права установлены для ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR} и .desktop файл обновлен."
+            else
+                echo "Альтернативный исполняемый файл также не найден: ${APPIMAGE_DIR}/${ALT_EXECUTABLE_PATH_IN_APPDIR}"
+                ls -R "${APPIMAGE_DIR}" # Выводим структуру для отладки
+                exit 1
+            fi
+          fi
+
+          # TODO: Убедись, что иконка ${EXECUTABLE_NAME}.png или .svg присутствует в ${APPIMAGE_DIR}/
+          # Например, скопируй ее из JPACKAGE_APP_DIR/share/icons/... или добавь свою.
+          # Пример: cp "${JPACKAGE_APP_DIR}/share/icons/hicolor/256x256/apps/${EXECUTABLE_NAME}.png" "${APPIMAGE_DIR}/${EXECUTABLE_NAME}.png"
+          # Если иконки нет, appimagetool может использовать стандартную или не добавить ее вовсе.
+
+          # Создаем AppImage
+          ARCH=x86_64 ./appimagetool "${APPIMAGE_DIR}" "dist/${EXECUTABLE_NAME}-Linux-x86_64.AppImage"
           
       - name: Upload Linux Archive
         uses: actions/upload-artifact@v4
